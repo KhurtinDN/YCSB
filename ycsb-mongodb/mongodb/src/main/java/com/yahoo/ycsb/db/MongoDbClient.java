@@ -333,6 +333,8 @@ public class MongoDbClient extends DB {
                 }
                 settingsBuilder.writeConcern(writeConcern);
                 settingsBuilder.readPreference(readPreference);
+                settingsBuilder.applyToSslSettings(builder ->
+                        builder.enabled(true));
 
                 String userPassword = username.equals("") ? "" : username + (password.equals("") ? "" : ":" + password) + "@";
 

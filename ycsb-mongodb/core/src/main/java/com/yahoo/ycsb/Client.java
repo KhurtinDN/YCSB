@@ -1,12 +1,12 @@
 /**
  * Copyright (c) 2010 Yahoo! Inc. All rights reserved.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License. You
  * may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
@@ -19,6 +19,8 @@ package com.yahoo.ycsb;
 
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.*;
 
@@ -34,81 +36,69 @@ import com.yahoo.ycsb.measurements.exporter.TextMeasurementsExporter;
  * @author cooperb
  *
  */
-class StatusThread extends Thread
-{
+class StatusThread extends Thread {
     Vector<Thread> _threads;
     String _label;
 
     /**
      * The interval for reporting status.
      */
-    public static final long sleeptime=10000;
+    public static final long sleeptime = 10000;
 
-    public StatusThread(Vector<Thread> threads, String label)
-    {
-        _threads=threads;
-        _label=label;
+    public StatusThread(Vector<Thread> threads, String label) {
+        _threads = threads;
+        _label = label;
     }
 
     /**
      * Run and periodically report status.
      */
-    public void run()
-    {
-        long st=System.currentTimeMillis();
+    public void run() {
+        long st = System.currentTimeMillis();
 
-        long lasten=st;
-        long lasttotalops=0;
+        long lasten = st;
+        long lasttotalops = 0;
 
         boolean alldone;
 
-        DecimalFormat secsFormat=new DecimalFormat("0.0");
+        DecimalFormat secsFormat = new DecimalFormat("0.0");
         DecimalFormat thruFormat = new DecimalFormat("#.##");
 
-        do
-        {
-            alldone=true;
+        do {
+            alldone = true;
 
-            int totalops=0;
+            int totalops = 0;
 
             //terminate this thread when all the worker threads are done
-            for (Thread t : _threads)
-            {
-                if (t.getState()!=Thread.State.TERMINATED)
-                {
-                    alldone=false;
+            for (Thread t : _threads) {
+                if (t.getState() != Thread.State.TERMINATED) {
+                    alldone = false;
                 }
 
-                ClientThread ct=(ClientThread)t;
-                totalops+=ct.getOpsDone();
+                ClientThread ct = (ClientThread) t;
+                totalops += ct.getOpsDone();
             }
 
-            long en=System.currentTimeMillis();
+            long en = System.currentTimeMillis();
 
-            long interval=en-st;
+            long interval = en - st;
             //double throughput=1000.0*((double)totalops)/((double)interval);
 
-            double curthroughput=1000.0*(((double)(totalops-lasttotalops))/((double)(en-lasten)));
+            double curthroughput = 1000.0 * (((double) (totalops - lasttotalops)) / ((double) (en - lasten)));
 
-            lasttotalops=totalops;
-            lasten=en;
+            lasttotalops = totalops;
+            lasten = en;
 
-            String topString=_label+" "+secsFormat.format(interval/1000.0)+" sec: "+totalops+" operations; ";
-            if (totalops==0)
-            {
-                System.err.println(topString+Measurements.getMeasurements().getSummary());
-            }
-            else
-            {
-                System.err.println(topString+thruFormat.format(curthroughput)+" current ops/sec; "+Measurements.getMeasurements().getSummary());
+            String topString = _label + " " + secsFormat.format(interval / 1000.0) + " sec: " + totalops + " operations; ";
+            if (totalops == 0) {
+                System.err.println(topString + Measurements.getMeasurements().getSummary());
+            } else {
+                System.err.println(topString + thruFormat.format(curthroughput) + " current ops/sec; " + Measurements.getMeasurements().getSummary());
             }
 
-            try
-            {
+            try {
                 sleep(sleeptime);
-            }
-            catch (InterruptedException e)
-            {
+            } catch (InterruptedException e) {
                 //do nothing
             }
 
@@ -123,8 +113,7 @@ class StatusThread extends Thread
  * @author cooperb
  *
  */
-class ClientThread extends Thread
-{
+class ClientThread extends Thread {
     DB _db;
     boolean _dotransactions;
     Workload _workload;
@@ -150,155 +139,117 @@ class ClientThread extends Thread
      * @param opcount the number of operations (transactions or inserts) to do
      * @param targetperthreadperms target number of operations per thread per ms
      */
-    public ClientThread(DB db, boolean dotransactions, Workload workload, int threadid, int threadcount, Properties props, int opcount, double targetperthreadperms)
-    {
+    public ClientThread(DB db, boolean dotransactions, Workload workload, int threadid, int threadcount, Properties props, int opcount, double targetperthreadperms) {
         //TODO: consider removing threadcount and threadid
-        _db=db;
-        _dotransactions=dotransactions;
-        _workload=workload;
-        _opcount=opcount;
-        _opsdone=0;
-        _target=targetperthreadperms;
-        _threadid=threadid;
-        _threadcount=threadcount;
-        _props=props;
+        _db = db;
+        _dotransactions = dotransactions;
+        _workload = workload;
+        _opcount = opcount;
+        _opsdone = 0;
+        _target = targetperthreadperms;
+        _threadid = threadid;
+        _threadcount = threadcount;
+        _props = props;
         //System.out.println("Interval = "+interval);
     }
 
-    public int getOpsDone()
-    {
+    public int getOpsDone() {
         return _opsdone;
     }
 
-    public void run()
-    {
-        try
-        {
+    public void run() {
+        try {
             _db.init();
-        }
-        catch (DBException e)
-        {
+        } catch (DBException e) {
             e.printStackTrace();
             e.printStackTrace(System.out);
             return;
         }
 
-        try
-        {
-            _workloadstate=_workload.initThread(_props,_threadid,_threadcount);
-        }
-        catch (WorkloadException e)
-        {
+        try {
+            _workloadstate = _workload.initThread(_props, _threadid, _threadcount);
+        } catch (WorkloadException e) {
             e.printStackTrace();
             e.printStackTrace(System.out);
             return;
         }
 
         //spread the thread operations out so they don't all hit the DB at the same time
-        try
-        {
+        try {
             //GH issue 4 - throws exception if _target>1 because random.nextInt argument must be >0
             //and the sleep() doesn't make sense for granularities < 1 ms anyway
-            if ( (_target>0) && (_target<=1.0) )
-            {
-                sleep(Utils.random().nextInt((int)(1.0/_target)));
+            if ((_target > 0) && (_target <= 1.0)) {
+                sleep(Utils.random().nextInt((int) (1.0 / _target)));
             }
-        }
-        catch (InterruptedException e)
-        {
-          // do nothing.
+        } catch (InterruptedException e) {
+            // do nothing.
         }
 
-        try
-        {
-            if (_dotransactions)
-            {
-                long st=System.currentTimeMillis();
+        try {
+            long st = System.currentTimeMillis();
+            if (_dotransactions) {
 
-                while (((_opcount == 0) || (_opsdone < _opcount)) && !_workload.isStopRequested())
-                {
+                while (((_opcount == 0) || (_opsdone < _opcount)) && !_workload.isStopRequested()) {
 
-                    if (!_workload.doTransaction(_db,_workloadstate))
-                    {
+                    if (!_workload.doTransaction(_db, _workloadstate)) {
                         break;
                     }
 
                     _opsdone++;
 
                     //throttle the operations
-                    if (_target>0)
-                    {
+                    if (_target > 0) {
                         //this is more accurate than other throttling approaches we have tried,
                         //like sleeping for (1/target throughput)-operation latency,
                         //because it smooths timing inaccuracies (from sleep() taking an int,
                         //current time in millis) over many operations
-                        while (System.currentTimeMillis()-st<((double)_opsdone)/_target)
-                        {
-                            try
-                            {
+                        while (System.currentTimeMillis() - st < ((double) _opsdone) / _target) {
+                            try {
                                 sleep(1);
-                            }
-                            catch (InterruptedException e)
-                            {
-                              // do nothing.
+                            } catch (InterruptedException e) {
+                                // do nothing.
                             }
 
                         }
                     }
                 }
-            }
-            else
-            {
-                long st=System.currentTimeMillis();
+            } else {
 
-                while (((_opcount == 0) || (_opsdone < _opcount)) && !_workload.isStopRequested())
-                {
+                while (((_opcount == 0) || (_opsdone < _opcount)) && !_workload.isStopRequested()) {
 
-                    if (!_workload.doInsert(_db,_workloadstate))
-                    {
+                    if (!_workload.doInsert(_db, _workloadstate)) {
                         break;
                     }
 
                     _opsdone++;
 
                     //throttle the operations
-                    if (_target>0)
-                    {
+                    if (_target > 0) {
                         //this is more accurate than other throttling approaches we have tried,
                         //like sleeping for (1/target throughput)-operation latency,
                         //because it smooths timing inaccuracies (from sleep() taking an int,
                         //current time in millis) over many operations
-                        while (System.currentTimeMillis()-st<((double)_opsdone)/_target)
-                        {
-                            try
-                            {
+                        while (System.currentTimeMillis() - st < ((double) _opsdone) / _target) {
+                            try {
                                 sleep(1);
-                            }
-                            catch (InterruptedException e)
-                            {
-                              // do nothing.
+                            } catch (InterruptedException e) {
+                                // do nothing.
                             }
                         }
                     }
                 }
             }
-        }
-        catch (Exception e)
-        {
+        } catch (Exception e) {
             e.printStackTrace();
             e.printStackTrace(System.out);
             System.exit(0);
         }
 
-        try
-        {
+        try {
             _db.cleanup();
-        }
-        catch (DBException e)
-        {
+        } catch (DBException e) {
             e.printStackTrace();
             e.printStackTrace(System.out);
-            return;
         }
     }
 }
@@ -306,29 +257,27 @@ class ClientThread extends Thread
 /**
  * Main class for executing YCSB.
  */
-public class Client
-{
+public class Client {
 
-    public static final String OPERATION_COUNT_PROPERTY="operationcount";
+    public static final String OPERATION_COUNT_PROPERTY = "operationcount";
 
-    public static final String RECORD_COUNT_PROPERTY="recordcount";
+    public static final String RECORD_COUNT_PROPERTY = "recordcount";
 
-    public static final String WORKLOAD_PROPERTY="workload";
+    public static final String WORKLOAD_PROPERTY = "workload";
 
     /**
      * Indicates how many inserts to do, if less than recordcount. Useful for partitioning
      * the load among multiple servers, if the client is the bottleneck. Additionally, workloads
      * should support the "insertstart" property, which tells them which record to start at.
      */
-    public static final String INSERT_COUNT_PROPERTY="insertcount";
+    public static final String INSERT_COUNT_PROPERTY = "insertcount";
 
     /**
      * The maximum amount of time (in seconds) for which the benchmark will be run.
      */
     public static final String MAX_EXECUTION_TIME = "maxexecutiontime";
 
-    public static void usageMessage()
-    {
+    public static void usageMessage() {
         System.out.println("Usage: java com.yahoo.ycsb.Client [options]");
         System.out.println("Options:");
         System.out.println("  -threads n: execute using n threads (default: 1) - can also be specified as the \n" +
@@ -346,20 +295,18 @@ public class Client
         System.out.println("                  values in the propertyfile");
         System.out.println("  -s:  show status during run (default: no status)");
         System.out.println("  -l label:  use label for status (e.g. to label one experiment out of a whole batch)");
-        System.out.println("");
+        System.out.println();
         System.out.println("Required properties:");
-        System.out.println("  "+WORKLOAD_PROPERTY+": the name of the workload class to use (e.g. com.yahoo.ycsb.workloads.CoreWorkload)");
-        System.out.println("");
+        System.out.println("  " + WORKLOAD_PROPERTY + ": the name of the workload class to use (e.g. com.yahoo.ycsb.workloads.CoreWorkload)");
+        System.out.println();
         System.out.println("To run the transaction phase from multiple servers, start a separate client on each.");
         System.out.println("To run the load phase from multiple servers, start a separate client on each; additionally,");
         System.out.println("use the \"insertcount\" and \"insertstart\" properties to divide up the records to be inserted");
     }
 
-    public static boolean checkRequiredProperties(Properties props)
-    {
-        if (props.getProperty(WORKLOAD_PROPERTY)==null)
-        {
-            System.out.println("Missing property: "+WORKLOAD_PROPERTY);
+    public static boolean checkRequiredProperties(Properties props) {
+        if (props.getProperty(WORKLOAD_PROPERTY) == null) {
+            System.out.println("Missing property: " + WORKLOAD_PROPERTY);
             return false;
         }
 
@@ -373,29 +320,23 @@ public class Client
      * @throws IOException Either failed to write to output stream or failed to close it.
      */
     private static void exportMeasurements(Properties props, int opcount, long runtime)
-            throws IOException
-    {
+            throws IOException {
         MeasurementsExporter exporter = null;
-        try
-        {
+        try {
             // if no destination file is provided the results will be written to stdout
             OutputStream out;
             String exportFile = props.getProperty("exportfile");
-            if (exportFile == null)
-            {
+            if (exportFile == null) {
                 out = System.out;
-            } else
-            {
-                out = new FileOutputStream(exportFile);
+            } else {
+                out = Files.newOutputStream(Paths.get(exportFile));
             }
 
             // if no exporter is provided the default text one will be used
             String exporterStr = props.getProperty("exporter", "com.yahoo.ycsb.measurements.exporter.TextMeasurementsExporter");
-            try
-            {
+            try {
                 exporter = (MeasurementsExporter) Class.forName(exporterStr).getConstructor(OutputStream.class).newInstance(out);
-            } catch (Exception e)
-            {
+            } catch (Exception e) {
                 System.err.println("Could not find exporter " + exporterStr
                         + ", will use default text reporter.");
                 e.printStackTrace();
@@ -407,166 +348,128 @@ public class Client
             exporter.write("OVERALL", "Throughput(ops/sec)", throughput);
 
             Measurements.getMeasurements().exportMeasurements(exporter);
-        } finally
-        {
-            if (exporter != null)
-            {
+        } finally {
+            if (exporter != null) {
                 exporter.close();
             }
         }
     }
 
-    @SuppressWarnings("unchecked")
-    public static void main(String[] args)
-    {
+    public static void main(String[] args) {
         String dbname;
-        Properties props=new Properties();
-        Properties fileprops=new Properties();
-        boolean dotransactions=true;
-        int threadcount=1;
-        int target=0;
-        boolean status=false;
-        String label="";
+        Properties props = new Properties();
+        Properties fileprops = new Properties();
+        boolean dotransactions = true;
+        int threadcount;
+        int target;
+        boolean status = false;
+        String label = "";
 
         //parse arguments
-        int argindex=0;
+        int argindex = 0;
 
-        if (args.length==0)
-        {
+        if (args.length == 0) {
             usageMessage();
             System.exit(0);
         }
 
-        while (args[argindex].startsWith("-"))
-        {
-            if (args[argindex].compareTo("-threads")==0)
-            {
+        while (args[argindex].startsWith("-")) {
+            if (args[argindex].compareTo("-threads") == 0) {
                 argindex++;
-                if (argindex>=args.length)
-                {
+                if (argindex >= args.length) {
                     usageMessage();
                     System.exit(0);
                 }
-                int tcount=Integer.parseInt(args[argindex]);
-                props.setProperty("threadcount", tcount+"");
+                int tcount = Integer.parseInt(args[argindex]);
+                props.setProperty("threadcount", tcount + "");
                 argindex++;
-            }
-            else if (args[argindex].compareTo("-target")==0)
-            {
+            } else if (args[argindex].compareTo("-target") == 0) {
                 argindex++;
-                if (argindex>=args.length)
-                {
+                if (argindex >= args.length) {
                     usageMessage();
                     System.exit(0);
                 }
-                int ttarget=Integer.parseInt(args[argindex]);
-                props.setProperty("target", ttarget+"");
+                int ttarget = Integer.parseInt(args[argindex]);
+                props.setProperty("target", ttarget + "");
                 argindex++;
-            }
-            else if (args[argindex].compareTo("-load")==0)
-            {
-                dotransactions=false;
+            } else if (args[argindex].compareTo("-load") == 0) {
+                dotransactions = false;
                 argindex++;
-            }
-            else if (args[argindex].compareTo("-t")==0)
-            {
-                dotransactions=true;
+            } else if (args[argindex].compareTo("-t") == 0) {
+                dotransactions = true;
                 argindex++;
-            }
-            else if (args[argindex].compareTo("-s")==0)
-            {
-                status=true;
+            } else if (args[argindex].compareTo("-s") == 0) {
+                status = true;
                 argindex++;
-            }
-            else if (args[argindex].compareTo("-db")==0)
-            {
+            } else if (args[argindex].compareTo("-db") == 0) {
                 argindex++;
-                if (argindex>=args.length)
-                {
+                if (argindex >= args.length) {
                     usageMessage();
                     System.exit(0);
                 }
-                props.setProperty("db",args[argindex]);
+                props.setProperty("db", args[argindex]);
                 argindex++;
-            }
-            else if (args[argindex].compareTo("-l")==0)
-            {
+            } else if (args[argindex].compareTo("-l") == 0) {
                 argindex++;
-                if (argindex>=args.length)
-                {
+                if (argindex >= args.length) {
                     usageMessage();
                     System.exit(0);
                 }
-                label=args[argindex];
+                label = args[argindex];
                 argindex++;
-            }
-            else if (args[argindex].compareTo("-P")==0)
-            {
+            } else if (args[argindex].compareTo("-P") == 0) {
                 argindex++;
-                if (argindex>=args.length)
-                {
+                if (argindex >= args.length) {
                     usageMessage();
                     System.exit(0);
                 }
-                String propfile=args[argindex];
+                String propfile = args[argindex];
                 argindex++;
 
-                Properties myfileprops=new Properties();
-                try
-                {
-                    myfileprops.load(new FileInputStream(propfile));
-                }
-                catch (IOException e)
-                {
+                Properties myfileprops = new Properties();
+                try (FileInputStream propFileInputStream = new FileInputStream(propfile)) {
+                    myfileprops.load(propFileInputStream);
+                } catch (IOException e) {
                     System.out.println(e.getMessage());
                     System.exit(0);
                 }
 
                 //Issue #5 - remove call to stringPropertyNames to make compilable under Java 1.5
-                for (Enumeration e=myfileprops.propertyNames(); e.hasMoreElements(); )
-                {
-                   String prop=(String)e.nextElement();
+                for (Enumeration<?> e = myfileprops.propertyNames(); e.hasMoreElements(); ) {
+                    String prop = (String) e.nextElement();
 
-                   fileprops.setProperty(prop,myfileprops.getProperty(prop));
+                    fileprops.setProperty(prop, myfileprops.getProperty(prop));
                 }
 
-            }
-            else if (args[argindex].compareTo("-p")==0)
-            {
+            } else if (args[argindex].compareTo("-p") == 0) {
                 argindex++;
-                if (argindex>=args.length)
-                {
+                if (argindex >= args.length) {
                     usageMessage();
                     System.exit(0);
                 }
-                int eq=args[argindex].indexOf('=');
-                if (eq<0)
-                {
+                int eq = args[argindex].indexOf('=');
+                if (eq < 0) {
                     usageMessage();
                     System.exit(0);
                 }
 
-                String name=args[argindex].substring(0,eq);
-                String value=args[argindex].substring(eq+1);
-                props.put(name,value);
+                String name = args[argindex].substring(0, eq);
+                String value = args[argindex].substring(eq + 1);
+                props.put(name, value);
                 //System.out.println("["+name+"]=["+value+"]");
                 argindex++;
-            }
-            else
-            {
-                System.out.println("Unknown option "+args[argindex]);
+            } else {
+                System.out.println("Unknown option " + args[argindex]);
                 usageMessage();
                 System.exit(0);
             }
 
-            if (argindex>=args.length)
-            {
+            if (argindex >= args.length) {
                 break;
             }
         }
 
-        if (argindex!=args.length)
-        {
+        if (argindex != args.length) {
             usageMessage();
             System.exit(0);
         }
@@ -577,62 +480,45 @@ public class Client
         //overwrite file properties with properties from the command line
 
         //Issue #5 - remove call to stringPropertyNames to make compilable under Java 1.5
-        for (Enumeration e=props.propertyNames(); e.hasMoreElements(); )
-        {
-           String prop=(String)e.nextElement();
+        for (Enumeration<?> e = props.propertyNames(); e.hasMoreElements(); ) {
+            String prop = (String) e.nextElement();
 
-           fileprops.setProperty(prop,props.getProperty(prop));
+            fileprops.setProperty(prop, props.getProperty(prop));
         }
 
-        props=fileprops;
+        props = fileprops;
 
-        if (!checkRequiredProperties(props))
-        {
+        if (!checkRequiredProperties(props)) {
             System.exit(0);
         }
 
         long maxExecutionTime = Integer.parseInt(props.getProperty(MAX_EXECUTION_TIME, "0"));
 
         //get number of threads, target and db
-        threadcount=Integer.parseInt(props.getProperty("threadcount","1"));
-        dbname=props.getProperty("db","com.yahoo.ycsb.BasicDB");
-        target=Integer.parseInt(props.getProperty("target","0"));
+        threadcount = Integer.parseInt(props.getProperty("threadcount", "1"));
+        dbname = props.getProperty("db", "com.yahoo.ycsb.BasicDB");
+        target = Integer.parseInt(props.getProperty("target", "0"));
 
         //compute the target throughput
-        double targetperthreadperms=-1;
-        if (target>0)
-        {
-            double targetperthread=((double)target)/((double)threadcount);
-            targetperthreadperms=targetperthread/1000.0;
+        double targetperthreadperms = -1;
+        if (target > 0) {
+            double targetperthread = ((double) target) / ((double) threadcount);
+            targetperthreadperms = targetperthread / 1000.0;
         }
 
-        System.out.println("YCSB Client 0.1");
-        System.out.print("Command line:");
-        for (int i=0; i<args.length; i++)
-        {
-            System.out.print(" "+args[i]);
-        }
-        System.out.println();
-        System.err.println("Loading workload...");
+        System.out.printf("YCSB Client 0.1\nCommand line: %s\nLoading workload...\n", String.join(" ", args));
 
         //show a warning message that creating the workload is taking a while
         //but only do so if it is taking longer than 2 seconds
         //(showing the message right away if the setup wasn't taking very long was confusing people)
-        Thread warningthread=new Thread()
-        {
-            public void run()
-            {
-                try
-                {
-                    sleep(2000);
-                }
-                catch (InterruptedException e)
-                {
-                    return;
-                }
-                System.err.println(" (might take a few minutes for large data sets)");
+        Thread warningthread = new Thread(() -> {
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                return;
             }
-        };
+            System.err.println(" (might take a few minutes for large data sets)");
+        });
 
         warningthread.start();
 
@@ -643,27 +529,22 @@ public class Client
         //load the workload
         ClassLoader classLoader = Client.class.getClassLoader();
 
-        Workload workload=null;
+        Workload workload = null;
 
-        try
-        {
-            Class workloadclass = classLoader.loadClass(props.getProperty(WORKLOAD_PROPERTY));
+        try {
+            Class<?> workloadclass = classLoader.loadClass(props.getProperty(WORKLOAD_PROPERTY));
 
-            workload=(Workload)workloadclass.newInstance();
-        }
-        catch (Exception e)
-        {
+            //noinspection deprecation
+            workload = (Workload) workloadclass.newInstance();
+        } catch (Exception e) {
             e.printStackTrace();
             e.printStackTrace(System.out);
             System.exit(0);
         }
 
-        try
-        {
+        try {
             workload.init(props);
-        }
-        catch (WorkloadException e)
-        {
+        } catch (WorkloadException e) {
             e.printStackTrace();
             e.printStackTrace(System.out);
             System.exit(0);
@@ -676,55 +557,43 @@ public class Client
         System.err.println("Starting test.");
 
         int opcount;
-        if (dotransactions)
-        {
-            opcount=Integer.parseInt(props.getProperty(OPERATION_COUNT_PROPERTY,"0"));
-        }
-        else
-        {
-            if (props.containsKey(INSERT_COUNT_PROPERTY))
-            {
-                opcount=Integer.parseInt(props.getProperty(INSERT_COUNT_PROPERTY,"0"));
-            }
-            else
-            {
-                opcount=Integer.parseInt(props.getProperty(RECORD_COUNT_PROPERTY,"0"));
+        if (dotransactions) {
+            opcount = Integer.parseInt(props.getProperty(OPERATION_COUNT_PROPERTY, "0"));
+        } else {
+            if (props.containsKey(INSERT_COUNT_PROPERTY)) {
+                opcount = Integer.parseInt(props.getProperty(INSERT_COUNT_PROPERTY, "0"));
+            } else {
+                opcount = Integer.parseInt(props.getProperty(RECORD_COUNT_PROPERTY, "0"));
             }
         }
 
-        Vector<Thread> threads=new Vector<Thread>();
+        Vector<Thread> threads = new Vector<>();
 
-        for (int threadid=0; threadid<threadcount; threadid++)
-        {
-            DB db=null;
-            try
-            {
-                db=DBFactory.newDB(dbname,props);
-            }
-            catch (UnknownDBException e)
-            {
-                System.out.println("Unknown DB "+dbname);
+        for (int threadid = 0; threadid < threadcount; threadid++) {
+            DB db = null;
+            try {
+                db = DBFactory.newDB(dbname, props);
+            } catch (UnknownDBException e) {
+                System.out.println("Unknown DB " + dbname);
                 System.exit(0);
             }
 
-            Thread t=new ClientThread(db,dotransactions,workload,threadid,threadcount,props,opcount/threadcount,targetperthreadperms);
+            Thread t = new ClientThread(db, dotransactions, workload, threadid, threadcount, props, opcount / threadcount, targetperthreadperms);
 
             threads.add(t);
             //t.start();
         }
 
-        StatusThread statusthread=null;
+        StatusThread statusthread = null;
 
-        if (status)
-        {
-            statusthread=new StatusThread(threads,label);
+        if (status) {
+            statusthread = new StatusThread(threads, label);
             statusthread.start();
         }
 
-        long st=System.currentTimeMillis();
+        long st = System.currentTimeMillis();
 
-        for (Thread t : threads)
-        {
+        for (Thread t : threads) {
             t.start();
         }
 
@@ -737,45 +606,36 @@ public class Client
 
         int opsDone = 0;
 
-        for (Thread t : threads)
-        {
-            try
-            {
+        for (Thread t : threads) {
+            try {
                 t.join();
-                opsDone += ((ClientThread)t).getOpsDone();
-            }
-            catch (InterruptedException e)
-            {
+                opsDone += ((ClientThread) t).getOpsDone();
+            } catch (InterruptedException e) {
+                break;
             }
         }
 
-        long en=System.currentTimeMillis();
+        long en = System.currentTimeMillis();
 
         if (terminator != null && !terminator.isInterrupted()) {
             terminator.interrupt();
         }
 
-        if (status)
-        {
+        if (status) {
             statusthread.interrupt();
         }
 
-        try
-        {
+        try {
             workload.cleanup();
-        }
-        catch (WorkloadException e)
-        {
+        } catch (WorkloadException e) {
             e.printStackTrace();
             e.printStackTrace(System.out);
             System.exit(0);
         }
 
-        try
-        {
+        try {
             exportMeasurements(props, opsDone, en - st);
-        } catch (IOException e)
-        {
+        } catch (IOException e) {
             System.err.println("Could not export measurements, error: " + e.getMessage());
             e.printStackTrace();
             System.exit(-1);
